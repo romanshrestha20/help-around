@@ -1,0 +1,26 @@
+# Node/TypeScript
+node_modules
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist
+coverage
+
+# Env / config
+.env*
+.npmrc
+
+# Prisma
+prisma/generated
+prisma/migrations
+prisma
+# Editors/OS
+.vscode
+.idea
+.DS_Store
+
+# Logs
+*.log
+
+# Docker artifacts
+*.pid
