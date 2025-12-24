@@ -1,9 +1,19 @@
-node_modules/
-/src/generated/prisma
+# Dependencies and build output
 node_modules
-npm-debug.log
+dist
+coverage
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE and OS cruft
+.vscode
+.idea
+.DS_Store
+
+# Local environment/config
+.env*
+.npmrc
+
+# VCS metadata
 .git
-.gitignore
-.env
-Dockerfile
-docker-compose.yml
