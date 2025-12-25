@@ -195,7 +195,7 @@ export const googleLogin = async (req: Request, res: Response, next: NextFunctio
     const googleUser = await verifyGoogleToken(token);
 
     const user = await findOrCreateOAuthUser({
-      provider: "google",
+      provider: "GOOGLE",
       ...googleUser,
     });
 
@@ -224,7 +224,7 @@ export const facebookLogin = async (req: Request, res: Response, next: NextFunct
     const facebookUser = await verifyFacebookToken(token);
 
     const user = await findOrCreateOAuthUser({
-      provider: "facebook",
+      provider: "FACEBOOK",
       ...facebookUser,
     });
 
