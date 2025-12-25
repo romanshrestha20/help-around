@@ -22,10 +22,10 @@ RUN npm ci --omit=dev
 
 # Copy built artifacts and prisma schema
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma 
+COPY --from=build /app/prisma ./dist/prisma 
 
 # Port the app listens on (see server.ts)
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/src/server.js"]
