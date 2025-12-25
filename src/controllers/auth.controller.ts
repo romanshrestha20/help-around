@@ -3,6 +3,9 @@ import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 import { signToken } from "../utils/jwt.js";
 import bcrypt from 'bcrypt';
+import { verifyGoogleToken } from "../services/google.service.js";
+import { findOrCreateOAuthUser } from "../services/auth.service.js";
+import { verifyFacebookToken } from "../services/facebook.service.js";
 
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -178,3 +181,61 @@ export const changeUserPassword = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
+
+
+
+
+export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return next(new AppError("Token is required", 400));
+    }
+    const googleUser = await verifyGoogleToken(token);
+
+    const user = await findOrCreateOAuthUser({
+      provider: "google",
+      ...googleUser,
+    });
+
+    const jwtToken = signToken({ userId: user.id });
+
+    res.status(200).json({
+      message: "Login successful",
+      token: jwtToken,
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
+export const facebookLogin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return next(new AppError("Token is required", 400));
+    }
+    const facebookUser = await verifyFacebookToken(token);
+
+    const user = await findOrCreateOAuthUser({
+      provider: "facebook",
+      ...facebookUser,
+    });
+
+    const jwtToken = signToken({ userId: user.id });
+
+    res.status(200).json({
+      message: "Login successful",
+      token: jwtToken,
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+}
