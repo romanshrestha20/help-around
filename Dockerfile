@@ -9,22 +9,23 @@ RUN npm ci --include=dev
 
 # ---------- BUILD ----------
 FROM deps AS build
-ARG DATABASE_URL
-ENV DATABASE_URL=${DATABASE_URL}
 COPY . .
-RUN rm -rf prisma/generated && npx prisma generate && npm run build
+# Only build TypeScript, do NOT generate Prisma client here (use runtime)
+RUN npm run build
 
 # ---------- PRODUCTION RUNTIME ----------
 FROM base AS production
 ENV NODE_ENV=production
+
+# Install only prod dependencies
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built artifacts and prisma schema
+# Copy built artifacts
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./dist/prisma 
+COPY --from=build /app/prisma ./dist/prisma
 
-# Port the app listens on (see server.ts)
+# Expose app port
 EXPOSE 3000
 
 # Start the server
