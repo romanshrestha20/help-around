@@ -7,10 +7,9 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.post("/logout", logout);
-router.get("/:id", authenticateUser, getUserProfile);
 router.post("/google", googleLogin);
 router.post("/facebook", facebookLogin);
 router.put("/change-password", authenticateUser, changeUserPassword);
-
+router.get("/me", authenticateUser, getUserProfile);
 
 export default router;
