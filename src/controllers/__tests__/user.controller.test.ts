@@ -56,7 +56,8 @@ describe("User Controller", () => {
         firstName: "John",
         lastName: "Doe",
         email: "john@example.com",
-        imagel: "https://example.com/image.jpg",
+        image: "https://example.com/image.jpg",
+        bio: "Hello, I'm John!",
         createdAt: new Date(),
       };
 
@@ -73,6 +74,7 @@ describe("User Controller", () => {
           firstName: true,
           lastName: true,
           email: true,
+          bio: true,
           image: true,
           createdAt: true,
         },
