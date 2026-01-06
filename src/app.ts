@@ -9,8 +9,8 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 // Sample route
 app.get('/', (req, res) => {
     res.send('Hello, HelpAround Backend!');
