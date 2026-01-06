@@ -11,6 +11,9 @@ import { verifyFacebookToken } from "../services/facebook.service.js";
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { firstName, lastName, email, password } = req.body;
+    console.log({
+      firstName, lastName, email, password
+    });
 
     // 1. Validate input
     if (!firstName || !lastName || !email || !password) {
@@ -23,12 +26,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       );
     }
 
-    const normalizedEmail = email.toLowerCase();
-    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    // 2. Ensure email is not already registered
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return next(new AppError("User already exists", 400));
+      return next(new AppError("Email is already registered", 409));
     }
-
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -36,7 +38,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       data: {
         firstName,
         lastName,
-        email: normalizedEmail,
+        email,
         passwordHash,
       },
     });
@@ -127,7 +129,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
         isAdmin: true,
         createdAt: true,
         updatedAt: true,
-        imageUrl: true,
+        image: true,
       },
     });
 

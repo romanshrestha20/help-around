@@ -1,13 +1,12 @@
 import { describe, it, beforeEach, expect, jest } from '@jest/globals';
 import { Request, Response, NextFunction } from "express";
-import type { Mock } from '@jest/globals';
 
 // Create mock objects before importing modules
 const mockPrisma = {
   user: {
-    findUnique: jest.fn() as unknown as Mock,
-    update: jest.fn() as unknown as Mock,
-    delete: jest.fn() as unknown as Mock,
+    findUnique: jest.fn() as any,
+    update: jest.fn() as any,
+    delete: jest.fn() as any,
   },
 };
 
@@ -21,18 +20,18 @@ const {
   getUserById,
   updateUserProfile,
   deleteUserAccount,
-} = await import("../user.controller");
+} = await import("../user.controller.js");
 
 describe("User Controller", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let next: NextFunction;
-  let jsonMock: Mock;
-  let statusMock: Mock;
+  let jsonMock: jest.Mock;
+  let statusMock: jest.Mock;
 
   beforeEach(() => {
-    jsonMock = jest.fn() as unknown as Mock;
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock }) as unknown as Mock;
+    jsonMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
     
     req = {
       body: {},
@@ -41,7 +40,7 @@ describe("User Controller", () => {
     res = {
       status: statusMock,
       json: jsonMock,
-    };
+    } as any;
     next = jest.fn();
 
     // Clear all mocks before each test
@@ -63,7 +62,7 @@ describe("User Controller", () => {
 
       req.user = { userId: "user-123" };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
 
       await getUserById(req as Request, res as Response, next);
 
@@ -74,7 +73,7 @@ describe("User Controller", () => {
           firstName: true,
           lastName: true,
           email: true,
-          imagel: true,
+          image: true,
           createdAt: true,
         },
       });
@@ -101,7 +100,7 @@ describe("User Controller", () => {
     it("should return error if user not found", async () => {
       req.user = { userId: "nonexistent-user" };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
 
       await getUserById(req as Request, res as Response, next);
 
@@ -117,7 +116,7 @@ describe("User Controller", () => {
       req.user = { userId: "user-123" };
 
       const dbError = new Error("Database connection failed");
-      (mockPrisma.user.findUnique as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
       await getUserById(req as Request, res as Response, next);
 
@@ -141,7 +140,7 @@ describe("User Controller", () => {
         lastName: "Smith",
       };
 
-      (mockPrisma.user.update as jest.Mock).mockResolvedValue(mockUpdatedUser);
+      (mockPrisma.user.update as any).mockResolvedValue(mockUpdatedUser);
 
       await updateUserProfile(req as Request, res as Response, next);
 
@@ -198,7 +197,7 @@ describe("User Controller", () => {
         firstName: "Jane",
       };
 
-      (mockPrisma.user.update as jest.Mock).mockResolvedValue(mockUpdatedUser);
+      (mockPrisma.user.update as any).mockResolvedValue(mockUpdatedUser);
 
       await updateUserProfile(req as Request, res as Response, next);
 
@@ -227,7 +226,7 @@ describe("User Controller", () => {
       };
 
       const dbError = new Error("Database update failed");
-      (mockPrisma.user.update as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.update as any).mockRejectedValue(dbError);
 
       await updateUserProfile(req as Request, res as Response, next);
 
@@ -242,7 +241,7 @@ describe("User Controller", () => {
       };
 
       const notFoundError = new Error("Record to update not found");
-      (mockPrisma.user.update as jest.Mock).mockRejectedValue(notFoundError);
+      (mockPrisma.user.update as any).mockRejectedValue(notFoundError);
 
       await updateUserProfile(req as Request, res as Response, next);
 
@@ -254,7 +253,7 @@ describe("User Controller", () => {
     it("should delete user account successfully", async () => {
       req.user = { userId: "user-123" };
 
-      (mockPrisma.user.delete as jest.Mock).mockResolvedValue({
+      (mockPrisma.user.delete as any).mockResolvedValue({
         id: "user-123",
       });
 
@@ -287,7 +286,7 @@ describe("User Controller", () => {
       req.user = { userId: "user-123" };
 
       const dbError = new Error("Database delete failed");
-      (mockPrisma.user.delete as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.delete as any).mockRejectedValue(dbError);
 
       await deleteUserAccount(req as Request, res as Response, next);
 
@@ -298,7 +297,7 @@ describe("User Controller", () => {
       req.user = { userId: "nonexistent-user" };
 
       const notFoundError = new Error("Record to delete does not exist");
-      (mockPrisma.user.delete as jest.Mock).mockRejectedValue(notFoundError);
+      (mockPrisma.user.delete as any).mockRejectedValue(notFoundError);
 
       await deleteUserAccount(req as Request, res as Response, next);
 

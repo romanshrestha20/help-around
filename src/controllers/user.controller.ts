@@ -18,7 +18,7 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
         firstName: true,
         lastName: true,
         email: true,
-        imagel: true,
+        image: true,
         createdAt: true,
       },
     });

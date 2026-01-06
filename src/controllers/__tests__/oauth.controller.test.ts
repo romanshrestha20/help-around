@@ -2,6 +2,21 @@ import express from "express";
 import request from "supertest";
 import { jest } from "@jest/globals";
 
+// Mock PrismaClient FIRST
+await jest.unstable_mockModule("../../lib/prismaClient.js", () => ({
+    default: {
+        user: {
+            findUnique: jest.fn() as any,
+            create: jest.fn() as any,
+            update: jest.fn() as any,
+        },
+        oAuthAccount: {
+            findUnique: jest.fn() as any,
+            create: jest.fn() as any,
+        },
+    },
+}));
+
 // ESM-safe mocking using unstable_mockModule BEFORE importing router
 await jest.unstable_mockModule("../../services/google.service.js", () => ({
     verifyGoogleToken: jest.fn(async (_token: string) => ({

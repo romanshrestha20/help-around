@@ -1,31 +1,26 @@
 import { describe, it, beforeEach, expect, jest } from '@jest/globals';
 import { Request, Response, NextFunction } from "express";
-import type { Mock } from '@jest/globals';
 
 // Create mock functions that will be shared between default and named exports
-const hashMock = jest.fn() as unknown as Mock;
-const compareMock = jest.fn() as unknown as Mock;
+const hashMock = jest.fn() as any;
+const compareMock = jest.fn() as any;
 
 
 const mockPrisma = {
   user: {
-    findUnique: jest.fn() as unknown as Mock,
-    create: jest.fn() as unknown as Mock,
-    update: jest.fn() as unknown as Mock,
+    findUnique: jest.fn() as any,
+    create: jest.fn() as any,
+    update: jest.fn() as any,
   },
 };
 
 const mockBcrypt = {
   hash: hashMock,
   compare: compareMock,
-  default: {
-    hash: hashMock,
-    compare: compareMock,
-  },
 };
 
 const mockJwt = {
-  signToken: jest.fn() as unknown as Mock,
+  signToken: jest.fn() as any,
 };
 
 // Mock the modules
@@ -34,7 +29,7 @@ jest.unstable_mockModule('../../lib/prismaClient', () => ({
 }));
 
 jest.unstable_mockModule('bcrypt', () => ({
-  default: mockBcrypt.default,
+  default: mockBcrypt,
   ...mockBcrypt,
 }));
 
@@ -47,18 +42,18 @@ const {
   register,
   getUserProfile,
   changeUserPassword,
-} = await import("../auth.controller");
+} = await import("../auth.controller.js");
 
 describe("Auth Controller", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let next: NextFunction;
-  let jsonMock: Mock;
-  let statusMock: Mock;
+  let jsonMock: jest.Mock;
+  let statusMock: jest.Mock;
 
   beforeEach(() => {
-    jsonMock = jest.fn() as unknown as Mock;
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock }) as unknown as Mock;
+    jsonMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
     
     req = {
       body: {},
@@ -67,7 +62,7 @@ describe("Auth Controller", () => {
     res = {
       status: statusMock,
       json: jsonMock,
-    };
+    } as any;
     next = jest.fn();
 
     // Clear all mocks before each test
@@ -105,14 +100,14 @@ describe("Auth Controller", () => {
       await register(req as Request, res as Response, next);
 
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: "john@example.com" },
+        where: { email: "John@Example.com" },
       });
       expect(hashMock).toHaveBeenCalledWith("password123", 10);
       expect(mockPrisma.user.create).toHaveBeenCalledWith({
         data: {
           firstName: "John",
           lastName: "Doe",
-          email: "john@example.com",
+          email: "John@Example.com",
           passwordHash: "hashedPassword",
         },
       });
@@ -173,7 +168,7 @@ describe("Auth Controller", () => {
         password: "password123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (mockPrisma.user.findUnique as any).mockResolvedValue({
         id: "existing-user",
         email: "john@example.com",
       });
@@ -182,8 +177,8 @@ describe("Auth Controller", () => {
 
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: "User already exists",
-          statusCode: 400,
+          message: "Email is already registered",
+          statusCode: 409,
         })
       );
     });
@@ -197,7 +192,7 @@ describe("Auth Controller", () => {
       };
 
       const dbError = new Error("Database error");
-      (mockPrisma.user.findUnique as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
       await register(req as Request, res as Response, next);
 
@@ -221,9 +216,9 @@ describe("Auth Controller", () => {
         password: "password123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (compareMock as jest.Mock).mockResolvedValue(true);
-      (mockJwt.signToken as jest.Mock).mockReturnValue("mock-token");
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (compareMock as any).mockResolvedValue(true);
+      (mockJwt.signToken as any).mockReturnValue("mock-token");
 
       await login(req as Request, res as Response, next);
 
@@ -267,7 +262,7 @@ describe("Auth Controller", () => {
         password: "password123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
 
       await login(req as Request, res as Response, next);
 
@@ -291,8 +286,8 @@ describe("Auth Controller", () => {
         password: "wrongpassword",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (compareMock as jest.Mock).mockResolvedValue(false);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (compareMock as any).mockResolvedValue(false);
 
       await login(req as Request, res as Response, next);
 
@@ -311,7 +306,7 @@ describe("Auth Controller", () => {
       };
 
       const dbError = new Error("Database error");
-      (mockPrisma.user.findUnique as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
       await login(req as Request, res as Response, next);
 
@@ -356,7 +351,7 @@ describe("Auth Controller", () => {
 
       req.user = { userId: "user-123" };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
 
       await getUserProfile(req as Request, res as Response, next);
 
@@ -370,7 +365,7 @@ describe("Auth Controller", () => {
           isAdmin: true,
           createdAt: true,
           updatedAt: true,
-          imageUrl: true,
+          image: true,
         },
       });
       expect(statusMock).toHaveBeenCalledWith(200);
@@ -395,7 +390,7 @@ describe("Auth Controller", () => {
     it("should return error if user not found", async () => {
       req.user = { userId: "nonexistent-user" };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
 
       await getUserProfile(req as Request, res as Response, next);
 
@@ -411,7 +406,7 @@ describe("Auth Controller", () => {
       req.user = { userId: "user-123" };
 
       const dbError = new Error("Database error");
-      (mockPrisma.user.findUnique as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
       await getUserProfile(req as Request, res as Response, next);
 
@@ -432,10 +427,10 @@ describe("Auth Controller", () => {
         newPassword: "newPassword123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (compareMock as jest.Mock).mockResolvedValue(true);
-      (hashMock as jest.Mock).mockResolvedValue("newHashedPassword");
-      (mockPrisma.user.update as jest.Mock).mockResolvedValue({});
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (compareMock as any).mockResolvedValue(true);
+      (hashMock as any).mockResolvedValue("newHashedPassword");
+      (mockPrisma.user.update as any).mockResolvedValue({});
 
       await changeUserPassword(req as Request, res as Response, next);
 
@@ -494,7 +489,7 @@ describe("Auth Controller", () => {
         newPassword: "newPassword123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
 
       await changeUserPassword(req as Request, res as Response, next);
 
@@ -518,8 +513,8 @@ describe("Auth Controller", () => {
         newPassword: "newPassword123",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (compareMock as jest.Mock).mockResolvedValue(false);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (compareMock as any).mockResolvedValue(false);
 
       await changeUserPassword(req as Request, res as Response, next);
 
@@ -543,8 +538,8 @@ describe("Auth Controller", () => {
         newPassword: "short",
       };
 
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (compareMock as jest.Mock).mockResolvedValue(true);
+      (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (compareMock as any).mockResolvedValue(true);
 
       await changeUserPassword(req as Request, res as Response, next);
 
@@ -564,7 +559,7 @@ describe("Auth Controller", () => {
       };
 
       const dbError = new Error("Database error");
-      (mockPrisma.user.findUnique as jest.Mock).mockRejectedValue(dbError);
+      (mockPrisma.user.findUnique as any).mockRejectedValue(dbError);
 
       await changeUserPassword(req as Request, res as Response, next);
 

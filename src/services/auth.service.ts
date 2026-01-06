@@ -1,5 +1,5 @@
 import prisma from "../lib/prismaClient.js";
-import { Request, Response, NextFunction } from "express";
+
 
 export interface OAuthUser {
     provider: "GOOGLE" | "FACEBOOK"; // match AuthProvider enum
