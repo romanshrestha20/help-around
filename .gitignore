@@ -24,3 +24,5 @@ prisma
 
 # Docker artifacts
 *.pid
+
+/generated/prisma
