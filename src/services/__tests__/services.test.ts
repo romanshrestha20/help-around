@@ -3,15 +3,15 @@ import { jest } from "@jest/globals";
 // Mock Prisma client used by services
 const mockPrisma = {
     oAuthAccount: {
-        findUnique: jest.fn(),
-        findFirst: jest.fn(),
-        count: jest.fn(),
-        create: jest.fn(),
-        delete: jest.fn(),
+        findUnique: jest.fn() as any,
+        findFirst: jest.fn() as any,
+        count: jest.fn() as any,
+        create: jest.fn() as any,
+        delete: jest.fn() as any,
     },
     user: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
+        findUnique: jest.fn() as any,
+        create: jest.fn() as any,
     },
 };
 
@@ -20,13 +20,13 @@ await jest.unstable_mockModule("../../lib/prismaClient.js", () => ({
 }));
 
 // Mock axios for Facebook service
-const axiosGet = jest.fn();
+const axiosGet = jest.fn() as any;
 await jest.unstable_mockModule("axios", () => ({
     default: { get: axiosGet },
 }));
 
 // Mock google-auth-library for Google service
-const verifyIdToken = jest.fn();
+const verifyIdToken = jest.fn() as any;
 await jest.unstable_mockModule("google-auth-library", () => ({
     OAuth2Client: class {
         constructor(..._args: unknown[]) { }
