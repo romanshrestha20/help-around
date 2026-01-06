@@ -19,6 +19,7 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
         firstName: true,
         lastName: true,
         email: true,
+        bio: true,
         image: true,
         createdAt: true,
       },
@@ -37,7 +38,7 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
 export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    const { firstName, lastName } = req.body;
+    const { firstName, lastName, bio } = req.body;
 
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
@@ -50,6 +51,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       data: {
         firstName,
         lastName,
+        bio
       },
       select: {
         id: true,

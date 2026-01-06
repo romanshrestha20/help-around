@@ -18,6 +18,7 @@ model User {
   lastName     String?
   email        String  @unique
   passwordHash String?
+  bio          String? @db.Text
 
   isAdmin    Boolean @default(false)
   isVerified Boolean @default(false)
