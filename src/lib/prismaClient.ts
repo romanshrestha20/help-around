@@ -1,15 +1,13 @@
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { PrismaPg } from '@prisma/adapter-pg'
 
-// Declare global for development environment to prevent multiple instances
-declare global {
-  var prisma: PrismaClient | undefined;
-}
+import { PrismaClient } from '../../generated/prisma/client.js'
 
 
-const prisma = global.prisma || new PrismaClient();
+const connectionString = `${process.env.DATABASE_URL}`
 
-if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
-}
+const adapter = new PrismaPg({ connectionString })
+const prisma = new PrismaClient({ adapter })
 
+export { prisma }
 export default prisma;

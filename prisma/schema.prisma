@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated"
 }
 
 datasource db {
@@ -14,20 +13,20 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  firstName     String?
-  lastName      String?
-  email         String   @unique
-  passwordHash  String?
+  id           String  @id @default(uuid())
+  firstName    String?
+  lastName     String?
+  email        String  @unique
+  passwordHash String?
 
-  isAdmin       Boolean  @default(false)
-  isVerified    Boolean  @default(false)
+  isAdmin    Boolean @default(false)
+  isVerified Boolean @default(false)
 
-  address       String?
-  phone         String?
+  address String?
+  phone   String?
 
-  image         String?  @db.Text
-  imagePublicId String?  @db.Text
+  image         String? @db.Text
+  imagePublicId String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,14 +47,13 @@ model User {
   @@map("users")
 }
 
-
 model OAuthAccount {
-  id         String @id @default(uuid())
+  id         String       @id @default(uuid())
   provider   AuthProvider
   providerId String
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -64,16 +62,14 @@ model OAuthAccount {
   @@map("oauth_accounts")
 }
 
-
-
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   tokenHash String
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([tokenHash])
@@ -89,7 +85,7 @@ model Otp {
   consumed  Boolean  @default(false)
   userId    String?
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -99,11 +95,10 @@ model Otp {
   @@map("otps")
 }
 
-
 model PasswordResetToken {
-  id        String   @id @default(uuid())
-  token     String   @unique // Hashed token
-  userId    String
+  id     String    @id @default(uuid())
+  token  String    @unique // Hashed token
+  userId String
   usedAt DateTime?
 
   expiresAt DateTime
@@ -122,9 +117,8 @@ model Review {
   comment    String
   isApproved Boolean @default(true)
 
-  likesCount Int     @default(0) // NEW: fast UI access
-  replyCount Int     @default(0) // NEW: fast UI access
-
+  likesCount Int @default(0) // NEW: fast UI access
+  replyCount Int @default(0) // NEW: fast UI access
 
   user   User   @relation(fields: [userId], references: [id])
   userId String
@@ -140,7 +134,6 @@ model Review {
   @@index([userId])
   @@index([createdAt])
 }
-
 
 model ReviewReply {
   id      String @id @default(cuid())
@@ -160,47 +153,44 @@ model ReviewReply {
   @@index([userId])
 }
 
-
 model ReviewLike {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  reviewId       String?
-  review         Review?      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId String?
+  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
-  reviewReplyId  String?
-  reviewReply    ReviewReply? @relation(fields: [reviewReplyId], references: [id], onDelete: Cascade)
+  reviewReplyId String?
+  reviewReply   ReviewReply? @relation(fields: [reviewReplyId], references: [id], onDelete: Cascade)
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 
   @@unique([userId, reviewId])
   @@unique([userId, reviewReplyId])
-    @@index([reviewId])
+  @@index([reviewId])
   @@index([reviewReplyId])
   @@index([userId])
-
 }
 
 model Favorite {
-  id        String   @id @default(uuid())
-  userId    String
+  id     String @id @default(uuid())
+  userId String
 
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId])
   @@index([userId])
-
   @@map("favorites") // why this? - to explicitly set the table name in the database
 }
 
 model Image {
-  id        String   @id @default(uuid())
-  url       String
-    publicId  String?
+  id       String  @id @default(uuid())
+  url      String
+  publicId String?
 
   userId    String?
   reviewId  String?
@@ -212,7 +202,6 @@ model Image {
   @@index([userId])
   @@index([reviewId])
 }
-
 
 enum AuthProvider {
   LOCAL
