@@ -10,7 +10,12 @@ RUN npm ci --include=dev
 # ---------- BUILD ----------
 FROM deps AS build
 COPY . .
-# Only build TypeScript, do NOT generate Prisma client here (use runtime)
+# Set a dummy DATABASE_URL for Prisma generation (not used at runtime)
+ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+ENV DATABASE_URL=$DATABASE_URL
+# Generate Prisma client before building TypeScript
+RUN npm run prisma:generate
+# Build TypeScript
 RUN npm run build
 
 # ---------- PRODUCTION RUNTIME ----------
@@ -21,12 +26,14 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+# Copy schema for runtime Prisma generation
+COPY --from=build /app/prisma ./prisma
+
 # Copy built artifacts
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./dist/prisma
 
 # Expose app port
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "dist/src/server.js"]
+# Generate Prisma client at runtime and start the server
+CMD npx prisma generate && node dist/src/server.js
