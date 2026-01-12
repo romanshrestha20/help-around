@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import AppError from './appError.js';
 import 'dotenv/config';
-import { Verify } from 'node:crypto';
+
 
 
 
@@ -38,8 +38,12 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 
         return decoded as JwtPayload;
     } catch (error) {
-        throw new AppError('Invalid or expired token', 401);
+        if (error instanceof jwt.TokenExpiredError) {
+            throw new AppError("Token expired", 401);
+        }
+        throw new AppError("Invalid token", 401);
     }
+
 }
 
 
@@ -58,8 +62,12 @@ export const verifyRefreshToken = (token: string): JwtPayload => {
 
         return decoded as JwtPayload;
     } catch (error) {
-        throw new AppError('Invalid or expired token', 401);
+        if (error instanceof jwt.TokenExpiredError) {
+            throw new AppError("Token expired", 401);
+        }
+        throw new AppError("Invalid token", 401);
     }
+
 }
 
 
