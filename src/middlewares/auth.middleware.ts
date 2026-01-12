@@ -6,7 +6,7 @@ import AppError from '../utils/appError.js'
 export const authenticateUser = (req: Request, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization;
-        console.log({ authHeader: authHeader })
+
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             return next(new AppError("Authorization header missing or malformed", 401));
         }
