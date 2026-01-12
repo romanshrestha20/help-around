@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt.js"
+import { verifyAccessToken } from "../utils/jwt.js"
 import AppError from '../utils/appError.js'
 
 
@@ -12,7 +12,7 @@ export const authenticateUser = (req: Request, res: Response, next: NextFunction
         }
 
         const token = authHeader.split(" ")[1];
-        const decoded = verifyToken(token);
+        const decoded = verifyAccessToken(token);
         req.user = decoded;
 
         next();
