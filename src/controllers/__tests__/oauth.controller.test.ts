@@ -2,6 +2,7 @@ import express from "express";
 import request from "supertest";
 import { jest } from "@jest/globals";
 
+
 // Mock PrismaClient FIRST
 await jest.unstable_mockModule("../../lib/prismaClient.js", () => ({
     default: {
@@ -12,6 +13,9 @@ await jest.unstable_mockModule("../../lib/prismaClient.js", () => ({
         },
         oAuthAccount: {
             findUnique: jest.fn() as any,
+            create: jest.fn() as any,
+        },
+        refreshToken: {
             create: jest.fn() as any,
         },
     },
@@ -50,15 +54,18 @@ await jest.unstable_mockModule("../../services/auth.service.js", () => ({
 }));
 
 await jest.unstable_mockModule("../../utils/jwt.js", () => ({
-    signToken: jest.fn(() => "mock.jwt.token"),
-    verifyToken: jest.fn((token: string) => ({ userId: "user-123", token })),
+    signAccessToken: jest.fn((_payload: { userId: string }) => "mock.jwt.token"),
+    verifyAccessToken: jest.fn((_token: string) => ({ userId: "user-123" })),
+    signRefreshToken: jest.fn((_payload: { userId: string }) => "mock.refresh.token"),
+    verifyRefreshToken: jest.fn((_token: string) => ({ userId: "user-123" })),
 }));
+
 
 // Dynamically import mocks for assertions and the router under test
 const { verifyGoogleToken } = await import("../../services/google.service.js");
 const { verifyFacebookToken } = await import("../../services/facebook.service.js");
 const { findOrCreateOAuthUser } = await import("../../services/auth.service.js");
-const { signToken } = await import("../../utils/jwt.js");
+const { signAccessToken, verifyAccessToken, signRefreshToken, verifyRefreshToken } = await import("../../utils/jwt.js");
 const { default: authRouter } = await import("../../routes/auth.route.js");
 
 const makeApp = () => {
@@ -99,11 +106,13 @@ describe("OAuth login routes", () => {
         expect(findOrCreateOAuthUser).toHaveBeenCalledWith(
             expect.objectContaining({ provider: "GOOGLE", email: "google.user@example.com" })
         );
-        expect(signToken).toHaveBeenCalledWith({ userId: "user-123" });
+        expect(signAccessToken).toHaveBeenCalledWith({ userId: "user-123" });
+        expect(signRefreshToken).toHaveBeenCalledWith({ userId: "user-123" });
 
         expect(res.body).toMatchObject({
             message: "Login successful",
-            token: "mock.jwt.token",
+            accessToken: "mock.jwt.token",
+            refreshToken: "mock.refresh.token",
             user: expect.objectContaining({ id: "user-123", email: "google.user@example.com" }),
         });
     });
@@ -128,11 +137,13 @@ describe("OAuth login routes", () => {
         expect(findOrCreateOAuthUser).toHaveBeenCalledWith(
             expect.objectContaining({ provider: "FACEBOOK", email: "facebook.user@example.com" })
         );
-        expect(signToken).toHaveBeenCalledWith({ userId: "user-123" });
+        expect(signAccessToken).toHaveBeenCalledWith({ userId: "user-123" });
+        expect(signRefreshToken).toHaveBeenCalledWith({ userId: "user-123" });
 
         expect(res.body).toMatchObject({
             message: "Login successful",
-            token: "mock.jwt.token",
+            accessToken: "mock.jwt.token",
+            refreshToken: "mock.refresh.token",
             user: expect.objectContaining({ id: "user-123", email: "facebook.user@example.com" }),
         });
     });

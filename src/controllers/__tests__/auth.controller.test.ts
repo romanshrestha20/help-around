@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from "express";
 // Create mock functions that will be shared between default and named exports
 const hashMock = jest.fn() as any;
 const compareMock = jest.fn() as any;
+const hashTokenMock = jest.fn() as any;
 
 
 const mockPrisma = {
@@ -11,6 +12,10 @@ const mockPrisma = {
     findUnique: jest.fn() as any,
     create: jest.fn() as any,
     update: jest.fn() as any,
+  },
+  refreshToken: {
+    create: jest.fn() as any,
+    updateMany: jest.fn() as any,
   },
 };
 
@@ -20,8 +25,12 @@ const mockBcrypt = {
 };
 
 const mockJwt = {
-  signToken: jest.fn() as any,
+  signAccessToken: jest.fn().mockReturnValue("mock-access-token"),
+  signRefreshToken: jest.fn().mockReturnValue("mock-refresh-token"),
+  verifyAccessToken: jest.fn().mockReturnValue({ userId: "user-123" }),
+  verifyRefreshToken: jest.fn().mockReturnValue({ userId: "user-123" }),
 };
+
 
 // Mock the modules
 jest.unstable_mockModule('../../lib/prismaClient', () => ({
@@ -69,9 +78,15 @@ describe("Auth Controller", () => {
     mockPrisma.user.findUnique.mockClear();
     mockPrisma.user.create.mockClear();
     mockPrisma.user.update.mockClear();
+    mockPrisma.refreshToken.create.mockClear();
+    mockPrisma.refreshToken.updateMany.mockClear();
     hashMock.mockClear();
     compareMock.mockClear();
-    mockJwt.signToken.mockClear();
+    mockJwt.signAccessToken.mockClear();
+    mockJwt.signRefreshToken.mockClear();
+    mockJwt.verifyAccessToken.mockClear();
+    mockJwt.verifyRefreshToken.mockClear();
+
   });
 
   describe("register", () => {
@@ -95,7 +110,7 @@ describe("Auth Controller", () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       hashMock.mockResolvedValue("hashedPassword");
       mockPrisma.user.create.mockResolvedValue(mockUser);
-      mockJwt.signToken.mockReturnValue("mock-token");
+      mockPrisma.refreshToken.create.mockResolvedValue({ id: "token-123" });
 
       await register(req as Request, res as Response, next);
 
@@ -111,11 +126,12 @@ describe("Auth Controller", () => {
           passwordHash: "hashedPassword",
         },
       });
-      expect(mockJwt.signToken).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(mockJwt.signAccessToken).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(mockJwt.signRefreshToken).toHaveBeenCalledWith({ userId: "user-123" });
       expect(statusMock).toHaveBeenCalledWith(201);
       expect(jsonMock).toHaveBeenCalledWith({
-        message: "User registered successfully",
-        token: "mock-token",
+        accessToken: "mock-access-token",
+        refreshToken: "mock-refresh-token",
         user: {
           id: "user-123",
           email: "john@example.com",
@@ -176,11 +192,12 @@ describe("Auth Controller", () => {
       await register(req as Request, res as Response, next);
 
       expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Email is already registered",
-          statusCode: 409,
-        })
+        expect.any(Error)
       );
+      // Verify the error message
+      const errorArg = (next as any).mock.calls[0][0];
+      expect(errorArg.message).toBe("Email already registered");
+      expect(errorArg.statusCode).toBe(409);
     });
 
     it("should handle database errors", async () => {
@@ -218,7 +235,7 @@ describe("Auth Controller", () => {
 
       (mockPrisma.user.findUnique as any).mockResolvedValue(mockUser);
       (compareMock as any).mockResolvedValue(true);
-      (mockJwt.signToken as any).mockReturnValue("mock-token");
+      mockPrisma.refreshToken.create.mockResolvedValue({ id: "token-123" });
 
       await login(req as Request, res as Response, next);
 
@@ -226,11 +243,12 @@ describe("Auth Controller", () => {
         where: { email: "john@example.com" },
       });
       expect(compareMock).toHaveBeenCalledWith("password123", "hashedPassword");
-      expect(mockJwt.signToken).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(mockJwt.signAccessToken).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(mockJwt.signRefreshToken).toHaveBeenCalledWith({ userId: "user-123" });
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({
-        message: "Login successful",
-        token: "mock-token",
+        accessToken: "mock-access-token",
+        refreshToken: "mock-refresh-token",
         user: {
           id: "user-123",
           email: "john@example.com",
@@ -316,23 +334,36 @@ describe("Auth Controller", () => {
 
   describe("logout", () => {
     it("should logout successfully", async () => {
+      // The controller expects req.body to be the refreshToken string directly
+      req.body = "some-refresh-token";
+
+      // Mock updateMany to resolve successfully
+      (mockPrisma.refreshToken.updateMany as any).mockResolvedValue({ count: 1 });
+
       await logout(req as Request, res as Response, next);
 
+      // Verify updateMany was called
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(jsonMock).toHaveBeenCalledWith({
-        message: "Logout successful. Please delete your token on client-side.",
+        message: "Logout successful",
       });
     });
 
     it("should handle errors", async () => {
-      const error = new Error("Unexpected error");
-      statusMock.mockImplementation(() => {
-        throw error;
-      });
+      // The controller expects req.body to be a string (refreshToken)
+      // An empty string or falsy value should trigger the error
+      req.body = "";
 
       await logout(req as Request, res as Response, next);
 
-      expect(next).toHaveBeenCalledWith(error);
+      expect(next).toHaveBeenCalledWith(
+        expect.any(Error)
+      );
+      // Verify the error message
+      const errorArg = (next as any).mock.calls[0][0];
+      expect(errorArg.message).toBe("Refresh token is required");
+      expect(errorArg.statusCode).toBe(400);
     });
   });
 
