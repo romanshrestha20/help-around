@@ -47,7 +47,7 @@ export const sendPasswordResetEmail = async (email: string, otp: string) => {
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: email,
         subject: 'Password Reset OTP',
-        text: `Your password reset OTP is: ${otp}`,
+        text: `Hi there, \n\nYour password reset OTP is: ${otp}`,
     };
 
     await transporter.sendMail(mailOptions);
