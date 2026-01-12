@@ -16,6 +16,8 @@ const mockPrisma = {
   refreshToken: {
     create: jest.fn() as any,
     updateMany: jest.fn() as any,
+    update: jest.fn() as any,
+    findFirst: jest.fn() as any,
   },
 };
 
@@ -51,6 +53,8 @@ const {
   register,
   getUserProfile,
   changeUserPassword,
+  refreshToken,
+  hashToken,
 } = await import("../auth.controller.js");
 
 describe("Auth Controller", () => {
@@ -80,6 +84,8 @@ describe("Auth Controller", () => {
     mockPrisma.user.update.mockClear();
     mockPrisma.refreshToken.create.mockClear();
     mockPrisma.refreshToken.updateMany.mockClear();
+    mockPrisma.refreshToken.update.mockClear();
+    mockPrisma.refreshToken.findFirst.mockClear();
     hashMock.mockClear();
     compareMock.mockClear();
     mockJwt.signAccessToken.mockClear();
@@ -595,6 +601,229 @@ describe("Auth Controller", () => {
       await changeUserPassword(req as Request, res as Response, next);
 
       expect(next).toHaveBeenCalledWith(dbError);
+    });
+  });
+
+  describe("refreshToken", () => {
+    it("should return error if refresh token is missing", async () => {
+      req.body = {};
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Refresh token is required",
+          statusCode: 400,
+        })
+      );
+    });
+
+    it("should return error if refresh token is empty", async () => {
+      req.body = { refreshToken: "" };
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Refresh token is required",
+          statusCode: 400,
+        })
+      );
+    });
+
+    it("should handle invalid refresh token", async () => {
+      req.body = { refreshToken: "invalid-token" };
+
+      const tokenError = new Error("Invalid token");
+      (mockJwt.verifyRefreshToken as any).mockImplementationOnce(() => {
+        throw tokenError;
+      });
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(tokenError);
+    });
+
+    it("should revoke all user tokens if token not found in DB", async () => {
+      req.body = { refreshToken: "valid-token" };
+
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockResolvedValue(null);
+      (mockPrisma.refreshToken.updateMany as any).mockResolvedValue({ count: 5 });
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-123" },
+        data: { revokedAt: expect.any(Date) },
+      });
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Refresh token reuse detected",
+          statusCode: 401,
+        })
+      );
+    });
+
+    it("should successfully rotate refresh token", async () => {
+      const mockUser = {
+        id: "user-123",
+        email: "john@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      };
+
+      const storedToken = {
+        id: "stored-token-id",
+        tokenHash: "hashed-token",
+        userId: "user-123",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        user: mockUser,
+      };
+
+      req.body = { refreshToken: "valid-refresh-token" };
+
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockResolvedValue(storedToken);
+      (mockPrisma.refreshToken.update as any).mockResolvedValue({ id: "stored-token-id" });
+      (mockPrisma.refreshToken.create as any).mockResolvedValue({ id: "new-token-id" });
+
+      await refreshToken(req as Request, res as Response, next);
+
+      // Verify token revocation
+      expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: "stored-token-id" },
+        data: { revokedAt: expect.any(Date) },
+      });
+
+      // Verify new token creation
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
+        data: {
+          tokenHash: expect.any(String),
+          userId: "user-123",
+          expiresAt: expect.any(Date),
+        },
+      });
+
+      // Verify response
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({
+        accessToken: "mock-access-token",
+        refreshToken: "mock-refresh-token",
+        user: {
+          id: "user-123",
+          email: "john@example.com",
+          firstName: "John",
+          lastName: "Doe",
+        },
+      });
+    });
+
+    it("should verify that new refresh token is hashed before storing", async () => {
+      const mockUser = {
+        id: "user-123",
+        email: "john@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      };
+
+      const storedToken = {
+        id: "stored-token-id",
+        tokenHash: "hashed-token",
+        userId: "user-123",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        user: mockUser,
+      };
+
+      req.body = { refreshToken: "valid-refresh-token" };
+
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockResolvedValue(storedToken);
+      (mockPrisma.refreshToken.update as any).mockResolvedValue({ id: "stored-token-id" });
+      (mockPrisma.refreshToken.create as any).mockResolvedValue({ id: "new-token-id" });
+
+      await refreshToken(req as Request, res as Response, next);
+
+      // Get the call arguments for create
+      const createCallArgs = (mockPrisma.refreshToken.create as any).mock.calls[0][0];
+
+      // Verify that tokenHash is a hashed version of the token (not the token itself)
+      expect(createCallArgs.data.tokenHash).not.toBe("mock-refresh-token");
+      expect(createCallArgs.data.tokenHash).toEqual(hashToken("mock-refresh-token"));
+    });
+
+    it("should handle database errors during token lookup", async () => {
+      req.body = { refreshToken: "valid-token" };
+
+      const dbError = new Error("Database error");
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockRejectedValue(dbError);
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(dbError);
+    });
+
+    it("should handle database errors during token creation", async () => {
+      const mockUser = {
+        id: "user-123",
+        email: "john@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      };
+
+      const storedToken = {
+        id: "stored-token-id",
+        tokenHash: "hashed-token",
+        userId: "user-123",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        user: mockUser,
+      };
+
+      req.body = { refreshToken: "valid-refresh-token" };
+
+      const createError = new Error("Create error");
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockResolvedValue(storedToken);
+      (mockPrisma.refreshToken.update as any).mockResolvedValue({ id: "stored-token-id" });
+      (mockPrisma.refreshToken.create as any).mockRejectedValue(createError);
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(createError);
+    });
+
+    it("should handle database errors during token update/revocation", async () => {
+      const mockUser = {
+        id: "user-123",
+        email: "john@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      };
+
+      const storedToken = {
+        id: "stored-token-id",
+        tokenHash: "hashed-token",
+        userId: "user-123",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        user: mockUser,
+      };
+
+      req.body = { refreshToken: "valid-refresh-token" };
+
+      const updateError = new Error("Update error");
+      (mockJwt.verifyRefreshToken as any).mockReturnValue({ userId: "user-123" });
+      (mockPrisma.refreshToken.findFirst as any).mockResolvedValue(storedToken);
+      (mockPrisma.refreshToken.update as any).mockRejectedValue(updateError);
+
+      await refreshToken(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(updateError);
     });
   });
 });
