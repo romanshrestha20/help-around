@@ -108,10 +108,8 @@ export const uploadProfileImage = async (req: Request, res: Response, next: Next
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        url: result.secure_url,
-        publicId: result.public_id,
-        userId: req.user.userId,
-        reviewId: req.user.reviewId
+        image: result.secure_url,
+        imagePublicId: result.public_id,
       },
     });
 
@@ -133,7 +131,7 @@ export const removeProfileImage = async (req: Request, res: Response, next: Next
       return next(new AppError("Unauthorized", 401));
     }
     const image = await prisma.user.findUnique({
-      where: { id: req.params.id },
+      where: { id: userId },
       select: {
         image: true,
         imagePublicId: true,
