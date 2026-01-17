@@ -1,5 +1,5 @@
 # ---------- BASE IMAGE ----------
-FROM node:22-alpine AS base
+FROM node:22.12-alpine AS base
 WORKDIR /app
 
 # ---------- DEPENDENCIES ----------
@@ -17,6 +17,19 @@ ENV DATABASE_URL=$DATABASE_URL
 RUN npm run prisma:generate
 # Build TypeScript
 RUN npm run build
+
+# ---------- DEVELOPMENT ----------
+FROM deps AS development
+COPY . .
+ENV NODE_ENV=development
+# Set a dummy DATABASE_URL for Prisma generation
+ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+ENV DATABASE_URL=$DATABASE_URL
+# Generate Prisma client
+RUN npm run prisma:generate
+WORKDIR /app
+EXPOSE 3000
+CMD npm run dev
 
 # ---------- PRODUCTION RUNTIME ----------
 FROM base AS production
