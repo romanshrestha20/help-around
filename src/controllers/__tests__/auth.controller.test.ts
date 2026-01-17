@@ -19,6 +19,17 @@ const mockPrisma = {
     update: jest.fn() as any,
     findFirst: jest.fn() as any,
   },
+  otp: {
+    create: jest.fn() as any,
+    findFirst: jest.fn() as any,
+    update: jest.fn() as any,
+    deleteMany: jest.fn() as any,
+  },
+  passwordResetToken: {
+    create: jest.fn() as any,
+    findFirst: jest.fn() as any,
+    delete: jest.fn() as any,
+  },
 };
 
 const mockBcrypt = {
@@ -45,6 +56,14 @@ jest.unstable_mockModule('bcrypt', () => ({
 }));
 
 jest.unstable_mockModule('../../utils/jwt', () => mockJwt);
+
+// Mock Email service
+const sendPasswordResetEmailMock = jest.fn() as any;
+const sendPasswordResetConfirmationMock = jest.fn() as any;
+jest.unstable_mockModule('../../services/EmailService', () => ({
+  sendPasswordResetEmail: sendPasswordResetEmailMock,
+  sendPasswordResetConfirmation: sendPasswordResetConfirmationMock,
+}));
 
 // Now import the controller (this must happen after mocking)
 const {
@@ -86,12 +105,21 @@ describe("Auth Controller", () => {
     mockPrisma.refreshToken.updateMany.mockClear();
     mockPrisma.refreshToken.update.mockClear();
     mockPrisma.refreshToken.findFirst.mockClear();
+    mockPrisma.otp.create.mockClear();
+    mockPrisma.otp.findFirst.mockClear();
+    mockPrisma.otp.update.mockClear();
+    mockPrisma.otp.deleteMany.mockClear();
+    mockPrisma.passwordResetToken.create.mockClear();
+    mockPrisma.passwordResetToken.findFirst.mockClear();
+    mockPrisma.passwordResetToken.delete.mockClear();
     hashMock.mockClear();
     compareMock.mockClear();
     mockJwt.signAccessToken.mockClear();
     mockJwt.signRefreshToken.mockClear();
     mockJwt.verifyAccessToken.mockClear();
     mockJwt.verifyRefreshToken.mockClear();
+    sendPasswordResetEmailMock.mockClear();
+    sendPasswordResetConfirmationMock.mockClear();
 
   });
 
@@ -220,6 +248,163 @@ describe("Auth Controller", () => {
       await register(req as Request, res as Response, next);
 
       expect(next).toHaveBeenCalledWith(dbError);
+    });
+  });
+
+  describe("forgotPassword", () => {
+    it("returns 400 when email missing", async () => {
+      const { forgotPassword } = await import("../auth.controller.js");
+      req.body = {};
+
+      await forgotPassword(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Email is required", statusCode: 400 })
+      );
+    });
+
+    it("calls next with 200 generic message when user not found", async () => {
+      const { forgotPassword } = await import("../auth.controller.js");
+      req.body = { email: "absent@example.com" };
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
+
+      await forgotPassword(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringMatching(/email is registered/i),
+          statusCode: 200,
+        })
+      );
+    });
+
+    it("deletes old OTPs, stores hashed OTP, and sends email", async () => {
+      const { forgotPassword } = await import("../auth.controller.js");
+      req.body = { email: "user@example.com" };
+      (mockPrisma.user.findUnique as any).mockResolvedValue({ id: "u1", email: "user@example.com" });
+
+      // Make OTP deterministic: 6-digit 123456
+      const spy = jest.spyOn(Math, "random").mockReturnValue(0.123456);
+
+      await forgotPassword(req as Request, res as Response, next);
+
+      expect(mockPrisma.otp.deleteMany).toHaveBeenCalledWith({ where: { email: "user@example.com" } });
+      // Check hashed OTP stored (sha256 of "123456")
+      const createArgs = (mockPrisma.otp.create as any).mock.calls[0][0];
+      expect(createArgs.data.email).toBe("user@example.com");
+      expect(createArgs.data.otpHash).toHaveLength(64); // sha256 hex length
+      expect(createArgs.data.expiresAt).toBeInstanceOf(Date);
+      // 6-digit OTP from Math.random() = 0.123456
+      // floor(100000 + 0.123456 * 900000) => "211110"
+      expect(sendPasswordResetEmailMock).toHaveBeenCalledWith("user@example.com", "211110");
+      expect(statusMock).toHaveBeenCalledWith(200);
+      spy.mockRestore();
+    });
+  });
+
+  describe("verifyOtp", () => {
+    it("returns 400 when email or otp missing", async () => {
+      const { verifyOtp } = await import("../auth.controller.js");
+      req.body = { email: "user@example.com" };
+      await verifyOtp(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Email and OTP are required", statusCode: 400 })
+      );
+    });
+
+    it("returns 400 for invalid or expired OTP", async () => {
+      const { verifyOtp } = await import("../auth.controller.js");
+      req.body = { email: "user@example.com", otp: "999999" };
+      (mockPrisma.otp.findFirst as any).mockResolvedValue(null);
+
+      await verifyOtp(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Invalid or expired OTP", statusCode: 400 })
+      );
+    });
+
+    it("consumes OTP, creates reset token, returns success", async () => {
+      const { verifyOtp } = await import("../auth.controller.js");
+      req.body = { email: "user@example.com", otp: "123456" };
+      (mockPrisma.otp.findFirst as any).mockResolvedValue({ id: "otp1" });
+      (mockPrisma.user.findUnique as any).mockResolvedValue({ id: "u1", email: "user@example.com" });
+      (mockPrisma.passwordResetToken.create as any).mockResolvedValue({ id: "prt1" });
+
+      await verifyOtp(req as Request, res as Response, next);
+
+      expect(mockPrisma.otp.update).toHaveBeenCalledWith({ where: { id: "otp1" }, data: { consumed: true } });
+      expect(mockPrisma.passwordResetToken.create).toHaveBeenCalledWith({
+        data: {
+          userId: "u1",
+          token: expect.any(String),
+          expiresAt: expect.any(Date),
+        },
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ success: true, message: "OTP verified successfully" });
+    });
+
+    it("returns 404 when user not found after OTP", async () => {
+      const { verifyOtp } = await import("../auth.controller.js");
+      req.body = { email: "missing@example.com", otp: "123456" };
+      (mockPrisma.otp.findFirst as any).mockResolvedValue({ id: "otp1" });
+      (mockPrisma.user.findUnique as any).mockResolvedValue(null);
+
+      await verifyOtp(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "User not found", statusCode: 404 })
+      );
+    });
+  });
+
+  describe("resetPassword", () => {
+    it("returns 400 when token or password missing", async () => {
+      const { resetPassword } = await import("../auth.controller.js");
+      req.body = { token: "t" };
+      await resetPassword(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Token and new password required", statusCode: 400 })
+      );
+    });
+
+    it("returns 400 when password too short", async () => {
+      const { resetPassword } = await import("../auth.controller.js");
+      req.body = { token: "t", newPassword: "123" };
+      await resetPassword(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Password must be at least 6 chars", statusCode: 400 })
+      );
+    });
+
+    it("returns 400 when reset token invalid or expired", async () => {
+      const { resetPassword } = await import("../auth.controller.js");
+      req.body = { token: "t", newPassword: "newpass123" };
+      (mockPrisma.passwordResetToken.findFirst as any).mockResolvedValue(null);
+
+      await resetPassword(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Invalid or expired reset token", statusCode: 400 })
+      );
+    });
+
+    it("updates user password, deletes token, sends confirmation", async () => {
+      const { resetPassword } = await import("../auth.controller.js");
+      req.body = { token: "plaintexttoken", newPassword: "newpass123" };
+      const tokenRecord = {
+        id: "prt1",
+        userId: "u1",
+        user: { email: "user@example.com" },
+      };
+      (mockPrisma.passwordResetToken.findFirst as any).mockResolvedValue(tokenRecord);
+      hashMock.mockResolvedValue("hashedNewPassword");
+
+      await resetPassword(req as Request, res as Response, next);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: { passwordHash: "hashedNewPassword" },
+      });
+      expect(mockPrisma.passwordResetToken.delete).toHaveBeenCalledWith({ where: { id: "prt1" } });
+      expect(sendPasswordResetConfirmationMock).toHaveBeenCalledWith("user@example.com");
+      expect(jsonMock).toHaveBeenCalledWith({ success: true, message: "Password reset successful." });
     });
   });
 
