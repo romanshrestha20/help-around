@@ -10,43 +10,33 @@ RUN npm ci --include=dev
 # ---------- BUILD ----------
 FROM deps AS build
 COPY . .
-# Set a dummy DATABASE_URL for Prisma generation (not used at runtime)
+# Set dummy DATABASE_URL for Prisma generation (not used at build runtime)
 ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 ENV DATABASE_URL=$DATABASE_URL
-# Generate Prisma client before building TypeScript
 RUN npm run prisma:generate
-# Build TypeScript
 RUN npm run build
 
 # ---------- DEVELOPMENT ----------
 FROM deps AS development
+WORKDIR /app
 COPY . .
 ENV NODE_ENV=development
-# Set a dummy DATABASE_URL for Prisma generation
-ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
-ENV DATABASE_URL=$DATABASE_URL
-# Generate Prisma client
-RUN npm run prisma:generate
-WORKDIR /app
 EXPOSE 3000
-CMD npm run dev
+# Run dev without `watch` for Docker stability, use --host if you want hot reload
+CMD ["npm", "run", "dev", "watch"]
 
-# ---------- PRODUCTION RUNTIME ----------
+# ---------- PRODUCTION ----------
 FROM base AS production
+WORKDIR /app
 ENV NODE_ENV=production
 
-# Install only prod dependencies
+# Install prod dependencies
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy schema for runtime Prisma generation
+# Copy built artifacts and prisma schema
+COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 
-# Copy built artifacts
-COPY --from=build /app/dist ./dist
-
-# Expose app port
 EXPOSE 3000
-
-# Generate Prisma client at runtime and start the server
-CMD npx prisma generate && node dist/src/server.js
+CMD ["sh", "-c", "npx prisma generate && node dist/src/server.js"]
