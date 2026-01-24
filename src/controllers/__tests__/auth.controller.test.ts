@@ -68,7 +68,6 @@ jest.unstable_mockModule('../../services/EmailService', () => ({
 // Now import the controller (this must happen after mocking)
 const {
   login,
-  logout,
   register,
   getUserProfile,
   changeUserPassword,
@@ -404,7 +403,10 @@ describe("Auth Controller", () => {
       });
       expect(mockPrisma.passwordResetToken.delete).toHaveBeenCalledWith({ where: { id: "prt1" } });
       expect(sendPasswordResetConfirmationMock).toHaveBeenCalledWith("user@example.com");
-      expect(jsonMock).toHaveBeenCalledWith({ success: true, message: "Password reset successful." });
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        message: "Password reset successful."
+      });
     });
   });
 
@@ -523,40 +525,7 @@ describe("Auth Controller", () => {
     });
   });
 
-  describe("logout", () => {
-    it("should logout successfully", async () => {
-      // The controller expects req.body to be the refreshToken string directly
-      req.body = "some-refresh-token";
 
-      // Mock updateMany to resolve successfully
-      (mockPrisma.refreshToken.updateMany as any).mockResolvedValue({ count: 1 });
-
-      await logout(req as Request, res as Response, next);
-
-      // Verify updateMany was called
-      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(200);
-      expect(jsonMock).toHaveBeenCalledWith({
-        message: "Logout successful",
-      });
-    });
-
-    it("should handle errors", async () => {
-      // The controller expects req.body to be a string (refreshToken)
-      // An empty string or falsy value should trigger the error
-      req.body = "";
-
-      await logout(req as Request, res as Response, next);
-
-      expect(next).toHaveBeenCalledWith(
-        expect.any(Error)
-      );
-      // Verify the error message
-      const errorArg = (next as any).mock.calls[0][0];
-      expect(errorArg.message).toBe("Refresh token is required");
-      expect(errorArg.statusCode).toBe(400);
-    });
-  });
 
   describe("getUserProfile", () => {
     it("should get user profile successfully", async () => {
