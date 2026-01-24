@@ -21,9 +21,13 @@ FROM deps AS development
 WORKDIR /app
 COPY . .
 ENV NODE_ENV=development
+# Ensure Prisma Client is generated for development image
+ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+ENV DATABASE_URL=$DATABASE_URL
+RUN npm run prisma:generate
 EXPOSE 3000
-# Run dev without `watch` for Docker stability, use --host if you want hot reload
-CMD ["npm", "run", "dev", "watch"]
+# Run dev without `watch` for Docker stability; pass --host for hot reload externally
+CMD ["npm", "run", "dev"]
 
 # ---------- PRODUCTION ----------
 FROM base AS production
