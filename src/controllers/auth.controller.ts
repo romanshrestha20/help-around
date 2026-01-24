@@ -203,29 +203,29 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
 
 
-export const logout = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const refreshToken = req.body;
+// export const logout = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { refreshToken } = req.body;
 
-    if (!refreshToken) {
-      return next(new AppError("Refresh token is required", 400));
-    }
+//     if (!refreshToken) {
+//       return next(new AppError("Refresh token is required", 400));
+//     }
 
 
-    await prisma.refreshToken.updateMany({
-      where: {
-        tokenHash: hashToken(refreshToken)
-      },
-      data: {
-        revokedAt: new Date(),
-      }
-    });
+//     await prisma.refreshToken.updateMany({
+//       where: {
+//         tokenHash: hashToken(refreshToken)
+//       },
+//       data: {
+//         revokedAt: new Date(),
+//       }
+//     });
 
-    res.status(200).json({ message: "Logout successful" });
-  } catch (error) {
-    next(error);
-  }
-};
+//     res.status(200).json({ message: "Logout successful" });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
@@ -370,10 +370,18 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, otp } = req.body;
+    console.log('Verify OTP request body:', req.body);
 
-    if (!email || !otp) {
-      return next(new AppError("Email and OTP are required", 400));
+    // Basic validation
+    if (!email) {
+      return next(new AppError("Email are required", 400));
+
     }
+    if (!otp) {
+      return next(new AppError("OTP is required", 400));
+    }
+
+    // Hash OTP before comparing
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     // Check if OTP exists and is not expired and not consumed
@@ -419,6 +427,7 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
     });
     res.status(200).json({
       success: true,
+      token: resetTokenPlain,
       message: "OTP verified successfully",
     });
   } catch (error) {
@@ -429,7 +438,9 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
 export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, newPassword } = req.body;
+    console.log('Reset password request body:', req.body);
 
+    // Basic validation
     if (!token || !newPassword)
       return next(new AppError("Token and new password required", 400));
 
@@ -467,6 +478,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 
     return res.json({
       success: true,
+      token: hashedToken,
       message: "Password reset successful.",
     });
   } catch (error) {
