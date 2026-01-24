@@ -2,7 +2,6 @@ import express from "express";
 import {
     getUserProfile,
     login,
-    logout,
     register,
     googleLogin,
     facebookLogin,
@@ -18,7 +17,6 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
-router.post("/logout", logout);
 
 // OAuth routes
 router.post("/google", googleLogin);
