@@ -8,7 +8,7 @@ import { findOrCreateOAuthUser } from "../services/auth.service.js";
 import { verifyFacebookToken } from "../services/facebook.service.js";
 import crypto from "crypto";
 import { sendPasswordResetConfirmation, sendPasswordResetEmail } from "../services/EmailService.js";
-
+import { registerSchema } from "../utils/validateRegisterInput.js";
 
 
 export const hashToken = (token: string) => {
@@ -84,26 +84,28 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 };
 
 
+
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Validate with Zod
+    const parsed = registerSchema.safeParse(req.body);
 
-    // Validate input
-    const { firstName, lastName, email, password, dateOfBirth, gender } = req.body;
-
-    // Basic validation
-    if (!firstName || !lastName || !email || !password || !dateOfBirth || !gender) {
-      return next(new AppError("All fields are required", 400));
+    if (!parsed.success) {
+      return next(
+        new AppError(JSON.stringify(parsed.error.flatten().fieldErrors), 400),
+      );
     }
 
-    if (password.length < 8) {
-      return next(new AppError("Password must be at least 8 characters", 400));
-    }
+    const { firstName, lastName, email, password, dateOfBirth, gender } =
+      parsed.data;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return next(new AppError("Email already registered", 409));
     }
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -114,8 +116,8 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         lastName,
         email,
         passwordHash,
-        dateOfBirth: new Date(dateOfBirth),
-        gender,
+        dateOfBirth, // already a Date object from Zod
+        gender, // already "MALE" | "FEMALE" | "OTHER"
       },
     });
 
@@ -151,10 +153,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       },
     });
   } catch (error) {
-    // Handle errors
     next(error);
   }
 };
+
 
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {

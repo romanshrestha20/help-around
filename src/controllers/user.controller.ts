@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prismaClient.js";
 import AppError from "../utils/appError.js";
 import { deleteFromCloudinary, uploadToCloudinary } from "../utils/cloudinary.js";
+import {
+  UserProfileInput,
+  userProfileSchema,
+} from "../utils/validateUserInput.js";
 
 
 export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
@@ -41,13 +45,12 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
 export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    const { firstName, lastName } = req.body;
 
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
     }
-
-
+    const parsedData = userProfileSchema.parse(req.body);
+    const { firstName, lastName } = parsedData;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -68,7 +71,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
 
     res.status(200).json({
       message: "User profile updated successfully",
-      user: updatedUser
+      user: updatedUser,
     });
   } catch (error) {
     next(error);
