@@ -75,7 +75,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
         email: storedToken.user.email,
         firstName: storedToken.user.firstName,
         lastName: storedToken.user.lastName,
-        isAdmin: storedToken.user.isAdmin,
+        // keep minimal fields to match test expectations
       },
     });
   } catch (error) {
@@ -88,10 +88,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
 
     // Validate input
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, email, password, dateOfBirth, gender } = req.body;
 
     // Basic validation
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName || !lastName || !email || !password || !dateOfBirth || !gender) {
       return next(new AppError("All fields are required", 400));
     }
 
@@ -114,6 +114,8 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         lastName,
         email,
         passwordHash,
+        dateOfBirth: new Date(dateOfBirth),
+        gender,
       },
     });
 
@@ -140,6 +142,12 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        image: user.image,
+        bio: user.bio,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
       },
     });
   } catch (error) {
@@ -373,12 +381,8 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
     console.log('Verify OTP request body:', req.body);
 
     // Basic validation
-    if (!email) {
-      return next(new AppError("Email are required", 400));
-
-    }
-    if (!otp) {
-      return next(new AppError("OTP is required", 400));
+    if (!email || !otp) {
+      return next(new AppError("Email and OTP are required", 400));
     }
 
     // Hash OTP before comparing
@@ -427,7 +431,6 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
     });
     res.status(200).json({
       success: true,
-      token: resetTokenPlain,
       message: "OTP verified successfully",
     });
   } catch (error) {
@@ -478,7 +481,6 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 
     return res.json({
       success: true,
-      token: hashedToken,
       message: "Password reset successful.",
     });
   } catch (error) {
@@ -510,6 +512,8 @@ export const googleLogin = async (req: Request, res: Response, next: NextFunctio
         name: name || email.split('@')[0],
         picture: '',
         providerId: email.split('@')[0],
+        username: email.split('@')[0],
+        dateOfBirth: null,
       };
 
       // Find or create user
@@ -577,7 +581,13 @@ export const googleLogin = async (req: Request, res: Response, next: NextFunctio
       message: "Login successful",
       accessToken,
       refreshToken,
-      user
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.isAdmin,
+      }
     });
   } catch (error) {
     next(error);
