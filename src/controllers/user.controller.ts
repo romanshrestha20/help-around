@@ -20,6 +20,8 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
         lastName: true,
         username: true,
         email: true,
+        dateOfBirth: true,
+        gender: true,
         bio: true,
         image: true,
         createdAt: true,
@@ -58,6 +60,8 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
         firstName: true,
         lastName: true,
         email: true,
+        dateOfBirth: true,
+        gender: true,
         createdAt: true,
       },
     });
