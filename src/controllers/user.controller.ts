@@ -50,13 +50,16 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       return next(new AppError("Unauthorized", 401));
     }
     const parsedData = userProfileSchema.parse(req.body);
-    const { firstName, lastName } = parsedData;
+    const { firstName, lastName, bio, dateOfBirth, gender } = parsedData;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         firstName,
         lastName,
+        bio,
+        dateOfBirth,
+        gender,
       },
       select: {
         id: true,
@@ -65,6 +68,8 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
         email: true,
         dateOfBirth: true,
         gender: true,
+        bio: true,
+        image: true,
         createdAt: true,
       },
     });
